@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0a">
+<title>IONOV — Создаем цифровую реальность для бизнеса</title>
+<meta name="description" content="Премиальные сайты, кастомный дизайн и ИИ-агенты. Инженерная точность вместо шаблонов.">
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<!-- Tailwind -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter', 'system-ui', 'sans-serif'],
+          mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+        },
+        colors: {
+          brand: {
+            orange: '#ff4500',
+            red: '#ff003c',
+            dark: '#0a0a0a',
+          }
+        },
+        boxShadow: {
+          'neon': '0 0 40px rgba(255,69,0,0.5), 0 0 80px rgba(255,0,60,0.3)',
+          'neon-lg': '0 0 60px rgba(255,69,0,0.6), 0 0 120px rgba(255,0,60,0.4)',
+        }
+      }
+    }
+  }
+</script>
+
+<style>
+  html, body {
+    background: #0a0a0a;
+    color: #fff;
+    font-family: 'Inter', system-ui, sans-serif;
+    overflow-x: hidden;
+  }
+  html { scroll-behavior: auto; }
+  
+  /* Scroll snap */
+  main {
+    scroll-snap-type: y mandatory;
+    overflow-y: scroll;
+    height: 100vh;
+  }
+  section {
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+
+  /* Video background */
+  #bg-video {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover;
+    z-index: 0;
+  }
+
+  /* Canvas fallback */
+  #bg-canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 0;
+    display: none;
+  }
+
+  /* Overlay */
+  .video-overlay {
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(10,10,10,0.4) 0%, rgba(10,10,10,0.2) 50%, rgba(10,10,10,0.7) 100%);
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  /* Preloader */
+  #preloader {
+    position: fixed;
+    inset: 0;
+    background: #0a0a0a;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.8s ease, visibility 0.8s ease;
+  }
+  #preloader.hidden {
+    opacity: 0;
+    visibility: hidden;
+  }
+  .loader-percent {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(4rem, 15vw, 10rem);
+    font-weight: 700;
+    letter-spacing: -0.05em;
+    background: linear-gradient(135deg, #ff4500 0%, #ff003c 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .loader-bar {
+    width: min(400px, 80vw);
+    height: 2px;
+    background: rgba(255,255,255,0.1);
+    margin-top: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .loader-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ff4500, #ff003c);
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+  .loader-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.4);
+    margin-top: 1.5rem;
+    letter-spacing: 0.1em;
+  }
+
+  /* Reveal animations */
+  .reveal {
+    opacity: 0;
+    transform: translateY(40px);
+    transition: opacity 1s cubic-bezier(0.16, 1, 0.3, 1), transform 1s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .reveal.active {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .reveal-blur {
+    opacity: 0;
+    filter: blur(20px);
+    transition: opacity 1.2s ease, filter 1.2s ease;
+  }
+  .reveal-blur.active {
+    opacity: 1;
+    filter: blur(0);
+  }
+
+  /* Stagger */
+  .stagger > * { opacity: 0; transform: translateY(30px); transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+  .stagger.active > *:nth-child(1) { transition-delay: 0.1s; opacity: 1; transform: translateY(0); }
+  .stagger.active > *:nth-child(2) { transition-delay: 0.25s; opacity: 1; transform: translateY(0); }
+  .stagger.active > *:nth-child(3) { transition-delay: 0.4s; opacity: 1; transform: translateY(0); }
+  .stagger.active > *:nth-child(4) { transition-delay: 0.55s; opacity: 1; transform: translateY(0); }
+
+  /* Neon text */
+  .neon-text {
+    text-shadow: 0 0 40px rgba(255,69,0,0.5), 0 0 80px rgba(255,0,60,0.3);
+  }
+  .neon-text-strong {
+    text-shadow: 0 0 60px rgba(255,69,0,0.7), 0 0 120px rgba(255,0,60,0.5);
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    background: linear-gradient(135deg, #ff4500 0%, #ff003c 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Glass card */
+  .glass {
+    background: rgba(255,255,255,0.03);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .glass:hover {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,69,0,0.4);
+  }
+
+  /* Button shine */
+  .btn-shine {
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-shine::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transition: left 0.6s ease;
+  }
+  .btn-shine:hover::before { left: 100%; }
+
+  /* Pulse glow */
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 40px rgba(255,69,0,0.5), 0 0 80px rgba(255,0,60,0.3); }
+    50% { box-shadow: 0 0 60px rgba(255,69,0,0.7), 0 0 120px rgba(255,0,60,0.5); }
+  }
+  .pulse-glow { animation: pulse-glow 2.5s ease-in-out infinite; }
+
+  /* Metrics panel */
+  .metrics {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.5);
+    letter-spacing: 0.05em;
+  }
+  .metrics-value { color: #00ff88; }
+
+  /* Custom scrollbar hide for main */
+  main::-webkit-scrollbar { display: none; }
+  main { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Calculator slot animation */
+  @keyframes slotRoll {
+    0% { transform: translateY(-20px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+  }
+  .slot-animate { animation: slotRoll 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+  /* Range slider */
+  input[type="range"].urgency-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    outline: none;
+  }
+  input[type="range"].urgency-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px; height: 20px;
+    background: linear-gradient(135deg, #ff4500, #ff003c);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 20px rgba(255,69,0,0.6);
+  }
+
+  /* Fade to black for last section */
+  .fade-to-black {
+    position: relative;
+  }
+  .fade-to-black::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: #0a0a0a;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Hide scrollbar on body */
+  body { overflow: hidden; }
+</style>
+</head>
+<body>
+
+<!-- ============ PRELOADER ============ -->
+<div id="preloader">
+  <div class="loader-meta mb-4">LOADING EXPERIENCE</div>
+  <div class="loader-percent" id="loader-percent">0%</div>
+  <div class="loader-bar">
+    <div class="loader-bar-fill" id="loader-bar-fill"></div>
+  </div>
+  <div class="loader-meta mt-4" id="loader-meta">INITIALIZING VIDEO ENGINE...</div>
+</div>
+
+<!-- ============ VIDEO BACKGROUND ============ -->
+<video id="bg-video" playsinline muted preload="auto" poster="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1920' height='1080'><rect fill='%230a0a0a' width='1920' height='1080'/></svg>">
+  <source src="https://cdn.coverr.co/videos/coverr-abstract-neon-lights-2568/1080p.mp4" type="video/mp4">
+  <source src="https://assets.mixkit.co/videos/preview/mixkit-abstract-technology-network-connections-27611-large.mp4" type="video/mp4">
+</video>
+
+<!-- Canvas fallback -->
+<canvas id="bg-canvas"></canvas>
+
+<!-- Overlay -->
+<div class="video-overlay"></div>
+
+<!-- ============ TECHNICAL METRICS (Auxon-style) ============ -->
+<div class="fixed top-6 right-6 z-30 glass rounded-xl p-4 hidden md:block">
+  <div class="metrics space-y-1.5">
+    <div class="flex justify-between gap-8"><span>SCROLL</span><span class="metrics-value" id="m-scroll">0%</span></div>
+    <div class="flex justify-between gap-8"><span>VIDEO</span><span class="metrics-value" id="m-video">0.0s</span></div>
+    <div class="flex justify-between gap-8"><span>FPS</span><span class="metrics-value" id="m-fps">60</span></div>
+    <div class="flex justify-between gap-8"><span>SECTION</span><span class="metrics-value" id="m-section">1/4</span></div>
+  </div>
+</div>
+
+<!-- Mobile metrics (compact) -->
+<div class="fixed top-4 right-4 z-30 glass rounded-lg px-3 py-2 md:hidden">
+  <div class="metrics flex gap-3">
+    <span id="m-scroll-m">0%</span>
+    <span class="text-white/20">·</span>
+    <span id="m-section-m">1/4</span>
+  </div>
+</div>
+
+<!-- ============ MAIN SCROLL CONTAINER ============ -->
+<main id="main-scroll">
+
+  <!-- ============ SCENE 1: HERO ============ -->
+  <section class="relative h-screen flex items-center justify-center px-4 md:px-8 overflow-hidden">
+    <div class="relative z-10 max-w-6xl mx-auto text-center">
+      <div class="reveal-blur mb-6">
+        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full glass">
+          <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+          <span class="font-mono text-xs tracking-wider text-white/70">STATUS: СЛОТЫ НА РАЗРАБОТКУ ОТКРЫТЫ</span>
+        </div>
+      </div>
+
+      <h1 class="reveal-blur font-black tracking-tighter leading-[0.9] mb-8" style="font-size: clamp(3rem, 9vw, 9rem);">
+        СОЗДАЕМ<br>
+        <span class="gradient-text neon-text-strong">ЦИФРОВУЮ</span><br>
+        РЕАЛЬНОСТЬ
+      </h1>
+
+      <p class="reveal font-mono text-sm md:text-base text-white/60 max-w-xl mx-auto mb-10 tracking-wide">
+        ПРЕМИАЛЬНЫЕ САЙТЫ · КАСТОМНЫЙ ДИЗАЙН · ИИ-АГЕНТЫ<br>
+        <span class="text-white/40">ИНЖЕНЕРНАЯ ТОЧНОСТЬ ВМЕСТО ШАБЛОНОВ</span>
+      </p>
+
+      <div class="reveal flex flex-col sm:flex-row gap-4 justify-center items-center">
+        <a href="#contact" class="btn-shine inline-flex items-center gap-3 bg-gradient-to-r from-brand-orange to-brand-red text-white font-bold px-8 py-4 rounded-full transition-all hover:scale-105 pulse-glow text-sm md:text-base">
+          ОБСУДИТЬ ПРОЕКТ
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+        </a>
+        <a href="#showcase" class="inline-flex items-center gap-2 glass text-white font-medium px-6 py-4 rounded-full transition hover:bg-white/10 text-sm md:text-base">
+          СМОТРЕТЬ КЕЙСЫ
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+        </a>
+      </div>
+
+      <!-- Scroll indicator -->
+      <div class="reveal absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
+        <span class="font-mono text-xs text-white/40 tracking-widest">SCROLL</span>
+        <div class="w-px h-12 bg-gradient-to-b from-white/40 to-transparent relative overflow-hidden">
+          <div class="absolute top-0 left-0 w-full h-4 bg-white/80 animate-[scrollDown_2s_ease-in-out_infinite]"></div>
+        </div>
+      </div>
+    </div>
+
+    <style>
+      @keyframes scrollDown {
+        0% { transform: translateY(-100%); }
+        100% { transform: translateY(400%); }
+      }
+    </style>
+  </section>
+
+  <!-- ============ SCENE 2: SERVICES (Bento) ============ -->
+  <section class="relative h-screen flex items-center px-4 md:px-8 overflow-hidden">
+    <div class="relative z-10 max-w-7xl mx-auto w-full">
+      <div class="mb-10 md:mb-16 reveal">
+        <div class="font-mono text-xs text-brand-orange tracking-widest mb-4">// 02 · ДИСЦИПЛИНЫ</div>
+        <h2 class="font-black tracking-tighter leading-[0.95]" style="font-size: clamp(2rem, 5vw, 5rem);">
+          ТРИ ДИСЦИПЛИНЫ.<br>
+          <span class="gradient-text">ОДИН ПОДХОД.</span>
+        </h2>
+      </div>
+
+      <div class="stagger grid md:grid-cols-3 gap-4 md:gap-6">
+        <!-- Card 1 -->
+        <div class="glass rounded-3xl p-6 md:p-8 transition-all duration-500 hover:-translate-y-2 group">
+          <div class="flex items-start justify-between mb-8">
+            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-orange/20 to-brand-red/20 border border-brand-orange/30 flex items-center justify-center">
+              <svg class="w-7 h-7 text-brand-orange" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25"/></svg>
+            </div>
+            <span class="font-mono text-xs text-white/30">01</span>
+          </div>
+          <h3 class="text-2xl md:text-3xl font-black mb-3 tracking-tight">ПРЕМИУМ-ВЕБ</h3>
+          <p class="text-white/60 text-sm leading-relaxed mb-6">Кастомный дизайн в стиле брутализм и хай-энд минимализм. Без шаблонов. Каждый пиксель обоснован задачей бренда.</p>
+          <div class="flex flex-wrap gap-1.5">
+            <span class="font-mono text-[10px] px-2 py-1 rounded bg-white/5 text-white/50">TAILWIND</span>
+            <span class="font-mono text-[10px] px-2 py-1 rounded bg-white/5 text-white/50">HTML5</span>
+            <span class="font-mono text-[10px] px-2 py-1 rounded bg-white/5 text-white/50">VANILLA JS</span>
+          </div>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="glass rounded-3xl p-6 md:p-8 transition-all duration-500 hover:-translate-y-2 group">
+          <div class="flex items-start justify-between mb-8">
+            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-orange/20 to-brand-red/20 border border-brand-orange/30 flex items-center justify-center">
+              <svg class="w-7 h-7 text-brand-orange" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"/></svg>
+            </div>
+            <span class="font-mono text-xs text-white/30">02</span>
+          </div>
+          <h3 class="text-2xl md:text-3xl font-black mb-3 tracking-tight">ДИЗАЙН-СИСТЕМЫ</h3>
+          <p class="text-white/60 text-sm leading-relaxed mb-6">Масштабируемые интерфейсы. Токены, компоненты, документация. Единый язык дизайна для всей команды.</p>
+          <div class="flex flex-wrap gap-1.5">
+            <span class="font-mono text-[10px] px-2 py-1 rounded bg-white/5 text-white/50">FIGMA</span>
+            <span class="font-mono text-[10px] px-2 py-1 rounded bg-white/5 text-white/50">TOKENS</span>
+            <span class="font-mono text-[10px] px-2 py-1 rounded bg-white/5 text-white/50">DOCS</span>
+          </div>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="glass rounded-3xl p-6 md:p-8 transition-all duration-500 hover:-translate-y-2 group">
+          <div class="flex items-start justify-between mb-8">
+            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-orange/20 to-brand-red/20 border border-brand-orange/30 flex items-center justify-center">
+              <svg class="w-7 h-7 text-brand-orange" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/></svg>
+            </div>
+            <span class="font-mono text-xs text-white/30">03</span>
+          </div>
+          <h3 class="text-2xl md:text-3xl font-black mb-3 tracking-tight">ИИ-АГЕНТЫ</h3>
+          <p class="text-white/60 text-sm leading-relaxed mb-6">LLM интеграции в бизнес. Авто-поддержка, умные калькуляторы, CRM-ассистенты. Подключено к вашему продукту.</p>
+          <div class="flex flex-wrap gap-1.5">
+            <span class="font-mono text-[10px] px-2 py-1 rounded bg-white/5 text-white/50">OPENAI</span>
+            <span class="font-mono text-[10px] px-2 py-1 rounded bg-white/5 text-white/50">CLAUDE</span>
+            <span class="font-mono text-[10px] px-2 py-1 rounded bg-white/5 text-white/50">API</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SCENE 3: CALCULATOR ============ -->
+  <section class="relative h-screen flex items-center px-4 md:px-8 overflow-hidden">
+    <div class="relative z-10 max-w-5xl mx-auto w-full">
+      <div class="mb-8 md:mb-12 reveal">
+        <div class="font-mono text-xs text-brand-orange tracking-widest mb-4">// 03 · КАЛЬКУЛЯТОР</div>
+        <h2 class="font-black tracking-tighter leading-[0.95]" style="font-size: clamp(2rem, 5vw, 4.5rem);">
+          СТОИМОСТЬ<br>
+          <span class="gradient-text">ПРОЕКТА</span>
+        </h2>
+      </div>
+
+      <div class="reveal glass rounded-3xl p-6 md:p-10">
+        <!-- Тип проекта -->
+        <div class="mb-8">
+          <div class="font-mono text-xs text-white/50 mb-3 tracking-wider">01 · ТИП ПРОЕКТА</div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <label class="cursor-pointer">
+              <input type="radio" name="projectType" value="landing" data-price="50000" class="sr-only peer" checked>
+              <div class="peer-checked:border-brand-orange peer-checked:bg-brand-orange/5 border border-white/10 rounded-2xl p-4 transition-all hover:border-white/30">
+                <div class="font-bold mb-1">ЛЕНДИНГ</div>
+                <div class="font-mono text-xs text-white/50">ОТ 50 000 ₽</div>
+              </div>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="projectType" value="corporate" data-price="150000" class="sr-only peer">
+              <div class="peer-checked:border-brand-orange peer-checked:bg-brand-orange/5 border border-white/10 rounded-2xl p-4 transition-all hover:border-white/30">
+                <div class="font-bold mb-1">КОРПОРАТИВНЫЙ</div>
+                <div class="font-mono text-xs text-white/50">ОТ 150 000 ₽</div>
+              </div>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="projectType" value="ai" data-price="200000" class="sr-only peer">
+              <div class="peer-checked:border-brand-orange peer-checked:bg-brand-orange/5 border border-white/10 rounded-2xl p-4 transition-all hover:border-white/30">
+                <div class="font-bold mb-1">ИИ-ИНТЕГРАЦИЯ</div>
+                <div class="font-mono text-xs text-white/50">ОТ 200 000 ₽</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Срочность -->
+        <div class="mb-8">
+          <div class="flex items-center justify-between mb-3">
+            <div class="font-mono text-xs text-white/50 tracking-wider">02 · СРОЧНОСТЬ</div>
+            <div class="font-mono text-xs text-brand-orange" id="urgency-label">СТАНДАРТ · 4 НЕД.</div>
+          </div>
+          <input type="range" id="urgency" class="urgency-slider" min="0" max="2" step="1" value="0">
+          <div class="flex justify-between mt-2 font-mono text-[10px] text-white/40">
+            <span>СТАНДАРТ</span><span>СРОЧНО +30%</span><span>ВЧЕРА +60%</span>
+          </div>
+        </div>
+
+        <!-- Аддоны -->
+        <div class="mb-8">
+          <div class="font-mono text-xs text-white/50 mb-3 tracking-wider">03 · ДОПОЛНИТЕЛЬНО</div>
+          <div class="space-y-2">
+            <label class="cursor-pointer flex items-center justify-between glass rounded-xl p-4 hover:border-white/30 transition">
+              <div class="flex items-center gap-3">
+                <input type="checkbox" name="addon" value="design" data-price="50000" class="w-5 h-5 accent-brand-orange">
+                <span class="font-medium">ДИЗАЙН-СИСТЕМА</span>
+              </div>
+              <span class="font-mono text-sm text-white/60">+50 000 ₽</span>
+            </label>
+            <label class="cursor-pointer flex items-center justify-between glass rounded-xl p-4 hover:border-white/30 transition">
+              <div class="flex items-center gap-3">
+                <input type="checkbox" name="addon" value="seo" data-price="30000" class="w-5 h-5 accent-brand-orange">
+                <span class="font-medium">SEO-ОПТИМИЗАЦИЯ</span>
+              </div>
+              <span class="font-mono text-sm text-white/60">+30 000 ₽</span>
+            </label>
+            <label class="cursor-pointer flex items-center justify-between glass rounded-xl p-4 hover:border-white/30 transition">
+              <div class="flex items-center gap-3">
+                <input type="checkbox" name="addon" value="support" data-price="40000" class="w-5 h-5 accent-brand-orange">
+                <span class="font-medium">ТЕХПОДДЕРЖКА 6 МЕС.</span>
+              </div>
+              <span class="font-mono text-sm text-white/60">+40 000 ₽</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Итог -->
+        <div class="border-t border-white/10 pt-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <div class="font-mono text-xs text-white/50 mb-1">ИТОГОВАЯ СТОИМОСТЬ</div>
+            <div class="flex items-baseline gap-2">
+              <span class="text-4xl md:text-6xl font-black font-mono gradient-text" id="calc-total">50 000</span>
+              <span class="text-xl md:text-2xl font-bold text-white/60">₽</span>
+            </div>
+            <div class="font-mono text-xs text-white/50 mt-2">СРОК: <span class="text-brand-orange" id="calc-days">28 ДНЕЙ</span></div>
+          </div>
+          <a href="#contact" class="btn-shine inline-flex items-center gap-2 bg-gradient-to-r from-brand-orange to-brand-red text-white font-bold px-6 py-3 rounded-full transition hover:scale-105 text-sm">
+            ЗАКАЗАТЬ
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SCENE 4: CONTACT (Fade to black) ============ -->
+  <section id="contact" class="relative h-screen flex items-center justify-center px-4 md:px-8 overflow-hidden fade-to-black">
+    <div class="relative z-10 max-w-4xl mx-auto text-center">
+      <div class="reveal-blur mb-6">
+        <div class="font-mono text-xs text-brand-orange tracking-widest">// 04 · КОНТАКТ</div>
+      </div>
+
+      <h2 class="reveal-blur font-black tracking-tighter leading-[0.9] mb-8" style="font-size: clamp(2.5rem, 7vw, 7rem);">
+        ГОТОВЫ<br>
+        <span class="gradient-text neon-text-strong">НАЧАТЬ?</span>
+      </h2>
+
+      <p class="reveal font-mono text-sm md:text-base text-white/60 max-w-xl mx-auto mb-10">
+        НАПИШИТЕ В TELEGRAM — ОТВЕЧУ ЛИЧНО<br>
+        <span class="text-white/40">БЕЗ МЕНЕДЖЕРОВ. В ТЕЧЕНИЕ ДНЯ.</span>
+      </p>
+
+      <div class="reveal">
+        <a href="https://t.me/ionov_dev" target="_blank" class="btn-shine inline-flex items-center gap-3 bg-gradient-to-r from-brand-orange to-brand-red text-white font-black px-10 py-5 rounded-full transition-all hover:scale-105 pulse-glow text-base md:text-lg">
+          <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.568 8.16l-1.89 8.91c-.14.63-.51.78-1.03.48l-2.85-2.1-1.38 1.32c-.15.15-.28.28-.57.28l.2-2.9 5.27-4.76c.23-.2-.05-.32-.35-.12l-6.51 4.1-2.81-.88c-.61-.19-.63-.61.13-.9l10.98-4.24c.51-.19.96.12.8.9z"/></svg>
+          НАПИСАТЬ В TELEGRAM
+        </a>
+      </div>
+
+      <div class="reveal mt-12 space-y-2">
+        <div class="font-mono text-sm text-white/60">t.me/ionov_dev</div>
+        <div class="font-mono text-xs text-white/30">hello@ionov.dev</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ============ JAVASCRIPT ============ -->
+<script>
+(function() {
+  'use strict';
+
+  // ===================== PRELOADER С ТАЙМАУТОМ =====================
+  const preloader = document.getElementById('preloader');
+  const percentEl = document.getElementById('loader-percent');
+  const barFill = document.getElementById('loader-bar-fill');
+  const metaEl = document.getElementById('loader-meta');
+  const video = document.getElementById('bg-video');
+  const canvas = document.getElementById('bg-canvas');
+
+  let preloaderDismissed = false;
+
+  function dismissPreloader() {
+    if (preloaderDismissed) return;
+    preloaderDismissed = true;
+    percentEl.textContent = '100%';
+    barFill.style.width = '100%';
+    metaEl.textContent = 'READY';
+    setTimeout(() => {
+      preloader.classList.add('hidden');
+      initCanvasBackground();
+      initScrollReveal();
+    }, 400);
+  }
+
+  // Принудительный таймаут 4 секунды
+  const timeoutId = setTimeout(dismissPreloader, 4000);
+
+  // Симуляция прогресса
+  let fakeProgress = 0;
+  const fakeInterval = setInterval(() => {
+    fakeProgress += Math.random() * 20 + 5;
+    if (fakeProgress > 95) fakeProgress = 95;
+    percentEl.textContent = Math.round(fakeProgress) + '%';
+    barFill.style.width = fakeProgress + '%';
+  }, 150);
+
+  // Если видео реально загрузилось —-dismiss раньше
+  video.addEventListener('loadedmetadata', () => {
+    clearInterval(fakeInterval);
+    clearTimeout(timeoutId);
+    dismissPreloader();
+  });
+
+  video.addEventListener('error', () => {
+    clearInterval(fakeInterval);
+    clearTimeout(timeoutId);
+    video.style.display = 'none';
+    dismissPreloader();
+  });
+
+  // Пытаемся загрузить, но не блокируем
+  try { video.load(); } catch(e) { dismissPreloader(); }
+
+  // ===================== CANVAS ФОН (ОСНОВНОЙ) =====================
+  let canvasCtx, canvasW, canvasH, particles = [], mouseX = 0, mouseY = 0;
+  let currentScrollProgress = 0;
+
+  function initCanvasBackground() {
+    if (canvas.style.display !== 'block') {
+      canvas.style.display = 'block';
+    }
+    canvasCtx = canvas.getContext('2d');
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('mousemove', (e) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+    });
+
+    // Создаём частицы
+    const count = window.innerWidth < 768 ? 50 : 90;
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x: Math.random() * canvasW,
+        y: Math.random() * canvasH,
+        vx: (Math.random() - 0.5) * 0.4,
+        vy: (Math.random() - 0.5) * 0.4,
+        size: Math.random() * 1.5 + 0.5,
+        baseX: 0,
+        baseY: 0,
+      });
+    }
+    animateCanvas();
+  }
+
+  function resizeCanvas() {
+    canvasW = canvas.width = window.innerWidth;
+    canvasH = canvas.height = window.innerHeight;
+  }
+
+  function animateCanvas() {
+    // Затухающий след
+    canvasCtx.fillStyle = 'rgba(10, 10, 10, 0.15)';
+    canvasCtx.fillRect(0, 0, canvasW, canvasH);
+
+    // Сетка (едва заметная)
+    canvasCtx.strokeStyle = 'rgba(255, 69, 0, 0.03)';
+    canvasCtx.lineWidth = 0.5;
+    const gridSize = 60;
+    for (let x = 0; x < canvasW; x += gridSize) {
+      canvasCtx.beginPath();
+      canvasCtx.moveTo(x, 0);
+      canvasCtx.lineTo(x, canvasH);
+      canvasCtx.stroke();
+    }
+    for (let y = 0; y < canvasH; y += gridSize) {
+      canvasCtx.beginPath();
+      canvasCtx.moveTo(0, y);
+      canvasCtx.lineTo(canvasW, y);
+      canvasCtx.stroke();
+    }
+
+    // Частицы
+    particles.forEach((p, i) => {
+      p.x += p.vx;
+      p.y += p.vy;
+
+      // Отскок от краёв
+      if (p.x < 0 || p.x > canvasW) p.vx *= -1;
+      if (p.y < 0 || p.y > canvasH) p.vy *= -1;
+
+      // Притяжение к мыши
+      const dx = mouseX - p.x;
+      const dy = mouseY - p.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 150) {
+        p.x += dx * 0.005;
+        p.y += dy * 0.005;
+      }
+
+      // Свечение
+      const gradient = canvasCtx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 6);
+      gradient.addColorStop(0, 'rgba(255, 69, 0, 0.9)');
+      gradient.addColorStop(0.5, 'rgba(255, 0, 60, 0.3)');
+      gradient.addColorStop(1, 'rgba(255, 0, 60, 0)');
+      canvasCtx.fillStyle = gradient;
+      canvasCtx.beginPath();
+      canvasCtx.arc(p.x, p.y, p.size * 6, 0, Math.PI * 2);
+      canvasCtx.fill();
+
+      // Ядро частицы
+      canvasCtx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      canvasCtx.beginPath();
+      canvasCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      canvasCtx.fill();
+
+      // Связи между близкими частицами
+      for (let j = i + 1; j < particles.length; j++) {
+        const p2 = particles[j];
+        const ddx = p.x - p2.x;
+        const ddy = p.y - p2.y;
+        const d = Math.sqrt(ddx * ddx + ddy * ddy);
+        if (d < 130) {
+          const alpha = (1 - d / 130) * 0.4;
+          canvasCtx.strokeStyle = `rgba(255, 69, 0, ${alpha})`;
+          canvasCtx.lineWidth = 0.6;
+          canvasCtx.beginPath();
+          canvasCtx.moveTo(p.x, p.y);
+          canvasCtx.lineTo(p2.x, p2.y);
+          canvasCtx.stroke();
+        }
+      }
+    });
+
+    // Центральное свечение, зависящее от скролла
+    const cx = canvasW / 2;
+    const cy = canvasH / 2;
+    const glowRadius = 300 + currentScrollProgress * 200;
+    const centerGlow = canvasCtx.createRadialGradient(cx, cy, 0, cx, cy, glowRadius);
+    centerGlow.addColorStop(0, `rgba(255, 69, 0, ${0.08 + currentScrollProgress * 0.05})`);
+    centerGlow.addColorStop(1, 'rgba(255, 69, 0, 0)');
+    canvasCtx.fillStyle = centerGlow;
+    canvasCtx.fillRect(0, 0, canvasW, canvasH);
+
+    requestAnimationFrame(animateCanvas);
+  }
+
+  // ===================== SCROLL REVEAL =====================
+  function initScrollReveal() {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('active');
+        }
+      });
+    }, { threshold: 0.15 });
+
+    document.querySelectorAll('.reveal, .reveal-blur, .stagger').forEach(el => {
+      observer.observe(el);
+    });
+
+    // Отслеживание скролла для canvas и fade-to-black
+    const main = document.getElementById('main-scroll');
+    main.addEventListener('scroll', () => {
+      const scrollMax = main.scrollHeight - main.clientHeight;
+      currentScrollProgress = main.scrollTop / scrollMax;
+
+      // Fade-to-black для последней секции
+      const lastSection = document.getElementById('contact');
+      if (lastSection) {
+        const rect = lastSection.getBoundingClientRect();
+        const sectionH = lastSection.offsetHeight;
+        const visible = Math.max(0, Math.min(1, 1 - (rect.top / sectionH)));
+        const fadeAmount = Math.min(1, visible * 1.5);
+        lastSection.style.background = `rgba(10, 10, 10, ${fadeAmount * 0.95})`;
+      }
+
+      // Обновление метрик
+      updateMetrics();
+    }, { passive: true });
+
+    // Начальный вызов reveal для hero
+    setTimeout(() => {
+      document.querySelectorAll('.reveal, .reveal-blur, .stagger').forEach(el => {
+        const rect = el.getBoundingClientRect();
+        if (rect.top < window.innerHeight) el.classList.add('active');
+      });
+    }, 100);
+  }
+
+  function updateMetrics() {
+    const main = document.getElementById('main-scroll');
+    if (!main) return;
+    const scrollMax = main.scrollHeight - main.clientHeight;
+    const scrollProgress = (main.scrollTop / scrollMax) * 100;
+    const section = Math.min(4, Math.floor(main.scrollTop / window.innerHeight) + 1);
+
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    set('m-scroll', Math.round(scrollProgress) + '%');
+    set('m-section', section + '/4');
+    set('m-scroll-m', Math.round(scrollProgress) + '%');
+    set('m-section-m', section + '/4');
+    set('m-video', (video?.currentTime || 0).toFixed(1) + 's');
+  }
+
+  // ===================== CALCULATOR =====================
+  const basePrices = { landing: 50000, corporate: 150000, ai: 200000 };
+  const urgencyMultipliers = [1, 1.3, 1.6];
+  const urgencyLabels = ['СТАНДАРТ · 4 НЕД.', 'СРОЧНО · 2 НЕД.', 'ВЧЕРА · 1 НЕД.'];
+  const urgencyDays = [28, 14, 7];
+
+  const projectRadios = document.querySelectorAll('input[name="projectType"]');
+  const urgencySlider = document.getElementById('urgency');
+  const addonCheckboxes = document.querySelectorAll('input[name="addon"]');
+  const totalEl = document.getElementById('calc-total');
+  const daysEl = document.getElementById('calc-days');
+  const urgencyLabelEl = document.getElementById('urgency-label');
+
+  function formatPrice(n) {
+    return Math.round(n).toLocaleString('ru-RU').replace(/,/g, ' ');
+  }
+
+  function calculate() {
+    const selectedType = document.querySelector('input[name="projectType"]:checked');
+    if (!selectedType) return;
+    const base = basePrices[selectedType.value];
+    const urgencyIdx = parseInt(urgencySlider.value);
+    const multiplier = urgencyMultipliers[urgencyIdx];
+
+    let addonsTotal = 0;
+    addonCheckboxes.forEach(cb => {
+      if (cb.checked) addonsTotal += parseInt(cb.dataset.price);
+    });
+
+    const total = (base * multiplier) + addonsTotal;
+    const days = urgencyDays[urgencyIdx];
+
+    totalEl.classList.remove('slot-animate');
+    void totalEl.offsetWidth;
+    totalEl.classList.add('slot-animate');
+
+    totalEl.textContent = formatPrice(total);
+    daysEl.textContent = days + ' ДНЕЙ';
+    urgencyLabelEl.textContent = urgencyLabels[urgencyIdx];
+  }
+
+  projectRadios.forEach(r => r.addEventListener('change', calculate));
+  urgencySlider.addEventListener('input', calculate);
+  addonCheckboxes.forEach(cb => cb.addEventListener('change', calculate));
+
+  // Запуск калькулятора после dismiss preloader
+  setTimeout(calculate, 500);
+
+  // ===================== SMOOTH ANCHOR =====================
+  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function(e) {
+      const target = document.querySelector(this.getAttribute('href'));
+      if (target && target.tagName === 'SECTION') {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+
+  // ===================== CONSOLE BRANDING =====================
+  console.log('%c IONOV ', 'background: linear-gradient(135deg, #ff4500, #ff003c); color: white; font-weight: bold; padding: 8px 16px; border-radius: 4px;');
+  console.log('%c t.me/ionov_dev ', 'color: #ff4500;');
+
+})();
+</script>
